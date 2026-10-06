@@ -87,9 +87,12 @@ def test_missile_hit_destroys_enemy_and_scores(world):
     )
     world.step(1e-9, [Controls(), Controls()])
     assert world.scores == [1, 0]
-    # Round restarted: both alive again.
-    assert world.ships[1].alive
+    # The destruction pause started; the ship is not respawned yet.
+    assert not world.ships[1].alive
     assert world.missiles == []
+    # After the pause the new round restarts both ships.
+    world.step(world.config.destruction_pause + 1e-6, [Controls(), Controls()])
+    assert world.ships[1].alive
 
 
 def test_missile_does_not_hit_own_ship(world):

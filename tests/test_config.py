@@ -17,3 +17,23 @@ def test_player_bindings_are_disjoint():
     assert len(keys1) == 4
     assert len(keys2) == 4
     assert keys1.isdisjoint(keys2)
+
+
+def test_visual_and_timing_defaults_are_sane():
+    config = GameConfig()
+    assert config.destruction_pause > 0
+    for value in (
+        config.debris_count,
+        config.debris_speed,
+        config.debris_min_speed,
+        config.debris_lifetime,
+        config.debris_size,
+        config.flame_length,
+        config.flame_width,
+        config.flame_animation_speed,
+        config.trail_length,
+        config.trail_points,
+        config.glow_radius,
+        config.glow_steps,
+    ):
+        assert value > 0

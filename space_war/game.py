@@ -5,7 +5,7 @@ import pygame
 
 from .config import GameConfig
 from .input import InputMapper
-from .render import render
+from .render import Renderer
 from .world import World
 
 MAX_FRAME_DT = 0.05  # clamp huge deltas after stalls to keep physics stable
@@ -26,6 +26,7 @@ def run(config: GameConfig | None = None) -> None:
         clock = pygame.time.Clock()
         font = pygame.font.SysFont("monospace", 26)
         mapper = InputMapper(config)
+        renderer = Renderer(config)
 
         running = True
         while running:
@@ -38,7 +39,8 @@ def run(config: GameConfig | None = None) -> None:
             dt = min(clock.tick(120) / 1000.0, MAX_FRAME_DT)
             controls = mapper.poll()
             world.step(dt, controls)
-            render(surface, world, font)
+            renderer.update(dt, world, controls)
+            renderer.draw(surface, world, font, controls)
             pygame.display.flip()
     finally:
         pygame.quit()

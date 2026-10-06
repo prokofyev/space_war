@@ -5,35 +5,74 @@ import math
 
 import pygame
 
+from . import effects
+from .sprites import SpriteCache
 from .world import World
 
 
-def render(surface: pygame.Surface, world: World, font: pygame.font.Font) -> None:
-    surface.fill(world.config.background)
+class Renderer:
+    """Holds cached sprites and the visual effect state across frames."""
 
-    for index, missile in enumerate(world.missiles):
-        color = world.config.missile_colors[missile.owner]
-        radius = int(world.config.missile_radius)
-        center = (int(missile.position[0]), int(missile.position[1]))
-        pygame.draw.circle(surface, color, center, max(radius, 2))
+    def __init__(self, config) -> None:
+        self.config = config
+        self.sprites = SpriteCache(config)
+        self.explosions = effects.ExplosionField(config)
+        self.elapsed = 0.0
+        self._in_pause = False
 
-    for index, ship in enumerate(world.ships):
-        if not ship.alive:
-            continue
-        color = world.config.ship_colors[index]
-        radius = world.config.ship_radius
-        center = (int(ship.position[0]), int(ship.position[1]))
-        # Draw the ship as a donut/torus: body circle with a hollow middle.
-        pygame.draw.circle(surface, color, center, int(radius))
-        pygame.draw.circle(surface, world.config.background, center, int(radius * 0.5))
-        # Thrust direction marker.
-        tip = (
-            int(ship.position[0] + math.cos(ship.angle) * radius),
-            int(ship.position[1] + math.sin(ship.angle) * radius),
+    def update(self, dt: float, world: World, controls) -> None:
+        self.elapsed += dt
+        # Clear debris when a new round begins (pause -> active transition).
+        if not world.round_active:
+            self._in_pause = True
+        elif self._in_pause:
+            self.explosions.clear()
+            self._in_pause = False
+        for index, position, angle, velocity in world.destroyed_events:
+            self.explosions.spawn(position, self.config.ship_colors[index], velocity)
+        self.explosions.update(dt)
+
+    def draw(self, surface: pygame.Surface, world: World, font: pygame.font.Font,
+             controls=None) -> None:
+        surface.fill(self.config.background)
+
+        for missile in world.missiles:
+            effects.draw_missile_trail(
+                surface, self.config, missile.position, missile.velocity
+            )
+            color = self.config.missile_colors[missile.owner]
+            center = (int(missile.position[0]), int(missile.position[1]))
+            pygame.draw.circle(surface, color, center, max(int(self.config.missile_radius), 2))
+
+        for index, ship in enumerate(world.ships):
+            if not ship.alive:
+                continue
+            self._draw_ship(surface, index, ship, controls)
+
+        self.explosions.draw(surface)
+        _draw_scores(surface, world, font)
+
+    def _draw_ship(self, surface, index, ship, controls) -> None:
+        glow = self.sprites.glow[index]
+        surface.blit(
+            glow,
+            (ship.position[0] - glow.get_width() / 2.0,
+             ship.position[1] - glow.get_height() / 2.0),
         )
-        pygame.draw.line(surface, (255, 255, 255), center, tip, 2)
 
-    _draw_scores(surface, world, font)
+        thrusting = bool(controls and index < len(controls) and controls[index].thrust)
+        if thrusting:
+            effects.draw_flame(
+                surface, self.config, ship.position, ship.angle, self.elapsed
+            )
+
+        sprite = self.sprites.ship[index]
+        rotated = pygame.transform.rotozoom(sprite, -math.degrees(ship.angle), 1.0)
+        surface.blit(
+            rotated,
+            (ship.position[0] - rotated.get_width() / 2.0,
+             ship.position[1] - rotated.get_height() / 2.0),
+        )
 
 
 def _draw_scores(surface: pygame.Surface, world: World, font: pygame.font.Font) -> None:
@@ -45,3 +84,8 @@ def _draw_scores(surface: pygame.Surface, world: World, font: pygame.font.Font) 
         else:
             rect = text.get_rect(topright=(surface.get_width() - 24, 20))
             surface.blit(text, rect)
+
+
+def render(surface: pygame.Surface, world: World, font: pygame.font.Font) -> None:
+    """Backwards-compatible one-shot render used by tests; no persistent state."""
+    Renderer(world.config).draw(surface, world, font)

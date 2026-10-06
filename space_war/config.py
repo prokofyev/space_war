@@ -45,6 +45,24 @@ class GameConfig:
     ammo_max: int = 3
     ammo_replenish_interval: float = 3.0  # seconds per replenished missile
 
+    # Round timing
+    destruction_pause: float = 1.0       # seconds between destruction and respawn
+
+    # Presentation: explosion and effects
+    debris_count: int = 14
+    debris_speed: float = 170.0          # pixels / second, initial outward speed
+    debris_min_speed: float = 60.0
+    debris_lifetime: float = 0.9         # seconds before a piece disappears
+    debris_size: float = 3.5             # pixels
+    debris_damping: float = 2.0          # velocity decay per second
+    flame_length: float = 26.0           # pixels at full flicker
+    flame_width: float = 12.0            # pixels across the nozzle
+    flame_animation_speed: float = 20.0  # flicker rate
+    trail_length: float = 26.0           # pixels of missile trail
+    trail_points: int = 6
+    glow_radius: float = 22.0            # pixels of halo around a ship
+    glow_steps: int = 18
+
     # Spawn: positions as fractions of (width, height), facings in radians
     start_positions: tuple[tuple[float, float], tuple[float, float]] = (
         (0.25, 0.5),

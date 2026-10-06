@@ -51,6 +51,8 @@ class World:
     ammo: list[int] = field(default_factory=list)
     recharge: list[float] = field(default_factory=lambda: [0.0, 0.0])
     round_active: bool = True
+    round_pause_remaining: float = 0.0
+    destroyed_events: list[tuple[int, Vec, float, Vec]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.reset_round()
@@ -72,6 +74,7 @@ class World:
         self.ammo = [self.config.ammo_start, self.config.ammo_start]
         self.recharge = [0.0, 0.0]
         self.round_active = True
+        self.round_pause_remaining = 0.0
 
     # -- helpers -------------------------------------------------------------
     @property
@@ -93,6 +96,22 @@ class World:
     # -- main step -----------------------------------------------------------
     def step(self, dt: float, controls: list[Controls]) -> None:
         if dt <= 0:
+            return
+
+        self.destroyed_events = []
+
+        # During the destruction pause the world keeps advancing - survivors
+        # drift and in-flight missiles keep flying, wrapping, and expiring -
+        # but no controls apply, nothing scores, and only the respawn waits.
+        if not self.round_active:
+            self.round_pause_remaining -= dt
+            self._integrate_ships(dt)
+            self._integrate_missiles(dt)
+            self._wrap_ships()
+            self._wrap_missiles()
+            self._expire_missiles()
+            if self.round_pause_remaining <= 0.0:
+                self.reset_round()
             return
 
         self._apply_controls(dt, controls)
@@ -241,4 +260,8 @@ class World:
             return
         winner = 1 - dead[0]
         self.scores[winner] += 1
-        self.reset_round()
+        loser = dead[0]
+        ship = self.ships[loser]
+        self.destroyed_events.append((loser, ship.position, ship.angle, ship.velocity))
+        self.round_active = False
+        self.round_pause_remaining = self.config.destruction_pause
