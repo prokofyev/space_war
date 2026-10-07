@@ -1,16 +1,22 @@
 import math
 
+from space_war import relativity
 from space_war.vector import length
 from space_war.world import Controls, toroidal_delta
 
 
-def _momentum(ships):
-    return (ships[0].velocity[0] + ships[1].velocity[0],
-            ships[0].velocity[1] + ships[1].velocity[1])
+def _rel_momentum(ships, config):
+    m0, c = config.ship_mass, config.speed_of_light
+    pa = relativity.momentum(ships[0].velocity, m0, c)
+    pb = relativity.momentum(ships[1].velocity, m0, c)
+    return (pa[0] + pb[0], pa[1] + pb[1])
 
 
-def _kinetic(ships):
-    return 0.5 * (length(ships[0].velocity) ** 2 + length(ships[1].velocity) ** 2)
+def _rel_energy(ships, config):
+    m0, c = config.ship_mass, config.speed_of_light
+    ea = relativity.energy(relativity.momentum(ships[0].velocity, m0, c), m0, c)
+    eb = relativity.energy(relativity.momentum(ships[1].velocity, m0, c), m0, c)
+    return ea + eb
 
 
 def test_head_on_collision_exchanges_velocities(world):
@@ -30,14 +36,17 @@ def test_glancing_collision_conserves_momentum_and_energy(world):
     b.position = (47.0, 43.0)
     a.velocity = (25.0, 5.0)
     b.velocity = (-10.0, 15.0)
-    p0 = _momentum(world.ships)
-    k0 = _kinetic(world.ships)
+    p0 = _rel_momentum(world.ships, world.config)
+    e0 = _rel_energy(world.ships, world.config)
     world.step(0.0001, [Controls(), Controls()])
-    p1 = _momentum(world.ships)
-    k1 = _kinetic(world.ships)
-    assert math.isclose(p0[0], p1[0], abs_tol=1e-6)
-    assert math.isclose(p0[1], p1[1], abs_tol=1e-6)
-    assert math.isclose(k0, k1, abs_tol=1e-6)
+    p1 = _rel_momentum(world.ships, world.config)
+    e1 = _rel_energy(world.ships, world.config)
+    assert math.isclose(p0[0], p1[0], rel_tol=1e-9, abs_tol=1e-6)
+    assert math.isclose(p0[1], p1[1], rel_tol=1e-9, abs_tol=1e-6)
+    assert math.isclose(e0, e1, rel_tol=1e-9)
+    # Neither ship may reach the speed of light.
+    c = world.config.speed_of_light
+    assert length(a.velocity) < c and length(b.velocity) < c
 
 
 def test_collision_does_not_change_score(world):

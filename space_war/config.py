@@ -31,9 +31,12 @@ class GameConfig:
 
     # Ship physics
     ship_radius: float = 16.0
-    ship_mass: float = 1.0
+    ship_mass: float = 1.0              # rest mass of a ship
     rotation_speed: float = 3.4          # radians / second
-    thrust_accel: float = 320.0          # pixels / second^2
+    thrust_accel: float = 320.0          # low-speed acceleration; force = accel * mass
+
+    # Relativity
+    speed_of_light: float = 2000.0       # pixels / second; no object may reach it
 
     # Missiles
     missile_speed: float = 620.0         # pixels / second added along facing

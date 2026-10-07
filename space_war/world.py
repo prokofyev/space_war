@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from .config import GameConfig
 from .entities import Missile, Ship
+from . import relativity
 from .vector import Vec, add, dot, from_angle, length, normalize, scale, sub
 
 
@@ -135,11 +136,20 @@ class World:
             if control.rotate:
                 ship.angle += control.rotate * self.config.rotation_speed * dt
             if control.thrust:
-                acceleration = scale(from_angle(ship.angle), self.config.thrust_accel * dt)
-                ship.velocity = add(ship.velocity, acceleration)
+                self._thrust(ship, dt)
             if control.fire:
                 self._fire(i)
             self._recharge_ammo(i, dt)
+
+    def _thrust(self, ship: Ship, dt: float) -> None:
+        """Apply thrust as a force over time: ``p += F * dt`` along the facing."""
+        config = self.config
+        force = config.thrust_accel * config.ship_mass
+        p = relativity.momentum(ship.velocity, config.ship_mass, config.speed_of_light)
+        p = add(p, scale(from_angle(ship.angle), force * dt))
+        ship.velocity = relativity.velocity_from_momentum(
+            p, config.ship_mass, config.speed_of_light
+        )
 
     def _recharge_ammo(self, index: int, dt: float) -> None:
         if self.ammo[index] >= self.config.ammo_max:
@@ -157,7 +167,10 @@ class World:
         if not self.round_active or self.ammo[index] <= 0:
             return
         ship = self.ships[index]
-        muzzle = add(scale(from_angle(ship.angle), self.config.missile_speed), ship.velocity)
+        muzzle_local = scale(from_angle(ship.angle), self.config.missile_speed)
+        muzzle = relativity.add_velocities(
+            muzzle_local, ship.velocity, self.config.speed_of_light
+        )
         self.missiles.append(
             Missile(position=ship.position, velocity=muzzle, owner=index, traveled=0.0)
         )
@@ -205,18 +218,41 @@ class World:
             overlap = min_dist - dist
             normal = normalize(delta)
 
-        # Equal-mass elastic collision: exchange velocity components along the
-        # collision normal (tangential components are preserved).
+        # Relativistic elastic collision of two equal rest-mass bodies: resolve
+        # in the center-of-momentum frame, where each body simply reverses its
+        # momentum, then boost back. At low speed this reduces to the Newtonian
+        # velocity exchange and it can never push a ship to the speed of light.
         if dot(sub(b.velocity, a.velocity), normal) < 0.0:
-            a_normal = dot(a.velocity, normal)
-            b_normal = dot(b.velocity, normal)
-            a.velocity = add(a.velocity, scale(normal, b_normal - a_normal))
-            b.velocity = add(b.velocity, scale(normal, a_normal - b_normal))
+            self._elastic_collide(a, b)
 
         # Separate overlapping ships along the normal.
         half = overlap / 2.0
         a.position = self._wrap_position(add(a.position, scale(normal, -half)))
         b.position = self._wrap_position(add(b.position, scale(normal, half)))
+
+    def _elastic_collide(self, a: Ship, b: Ship) -> None:
+        config = self.config
+        c = config.speed_of_light
+        m0 = config.ship_mass
+        pa = relativity.momentum(a.velocity, m0, c)
+        pb = relativity.momentum(b.velocity, m0, c)
+        ea = relativity.energy(pa, m0, c)
+        eb = relativity.energy(pb, m0, c)
+
+        p_total = add(pa, pb)
+        e_total = ea + eb
+        frame = scale(p_total, c * c / e_total)
+
+        pa_com, _ = relativity.boost(pa, ea, frame, c)
+        pb_com, _ = relativity.boost(pb, eb, frame, c)
+        pa_com = scale(pa_com, -1.0)
+        pb_com = scale(pb_com, -1.0)
+        ea_com, eb_com = relativity.energy(pa_com, m0, c), relativity.energy(pb_com, m0, c)
+        pa_out, _ = relativity.boost(pa_com, ea_com, scale(frame, -1.0), c)
+        pb_out, _ = relativity.boost(pb_com, eb_com, scale(frame, -1.0), c)
+
+        a.velocity = relativity.velocity_from_momentum(pa_out, m0, c)
+        b.velocity = relativity.velocity_from_momentum(pb_out, m0, c)
 
     def _resolve_missile_ship_hits(self) -> None:
         survivors: list[Missile] = []

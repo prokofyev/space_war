@@ -43,7 +43,8 @@ def test_thrust_along_facing_accelerates(world):
     ship = world.ships[0]
     ship.angle = 0.0
     world.step(1.0, _two_player_controls(Controls(thrust=True)))
-    assert ship.velocity[0] == world.config.thrust_accel
+    # Low-speed (Newtonian) limit: ~ accel * dt, tiny relativistic correction.
+    assert math.isclose(ship.velocity[0], world.config.thrust_accel, rel_tol=1e-4)
     assert ship.velocity[1] == 0.0
 
 
@@ -52,7 +53,9 @@ def test_thrust_opposite_velocity_brakes(world):
     ship.velocity = (30.0, 0.0)
     ship.angle = math.pi
     world.step(1.0, _two_player_controls(Controls(thrust=True)))
-    assert ship.velocity[0] == 30.0 - world.config.thrust_accel
+    assert math.isclose(
+        ship.velocity[0], 30.0 - world.config.thrust_accel, rel_tol=1e-3
+    )
 
 
 def test_thrust_perpendicular_deflects(world):
@@ -60,8 +63,8 @@ def test_thrust_perpendicular_deflects(world):
     ship.velocity = (30.0, 0.0)
     ship.angle = -math.pi / 2  # facing up (negative y)
     world.step(1.0, _two_player_controls(Controls(thrust=True)))
-    assert ship.velocity[0] == 30.0
-    assert ship.velocity[1] == -world.config.thrust_accel
+    assert math.isclose(ship.velocity[0], 30.0, rel_tol=1e-3)
+    assert math.isclose(ship.velocity[1], -world.config.thrust_accel, rel_tol=1e-3)
 
 
 def test_wrap_scalar():

@@ -1,3 +1,5 @@
+import pytest
+
 from space_war.entities import Missile
 from space_war.world import Controls, toroidal_delta
 
@@ -23,8 +25,11 @@ def test_fire_combines_ship_velocity(world):
     ship.velocity = (30.0, 5.0)
     _fire(world, 0)
     missile = world.missiles[0]
-    assert missile.velocity[0] == world.config.missile_speed + 30.0
-    assert missile.velocity[1] == 5.0
+    # Low-speed limit of relativistic velocity addition ~ naive sum.
+    assert missile.velocity[0] == pytest.approx(
+        world.config.missile_speed + 30.0, rel=1e-3
+    )
+    assert missile.velocity[1] == pytest.approx(5.0, rel=1e-3)
 
 
 def test_empty_magazine_does_not_fire(world):
