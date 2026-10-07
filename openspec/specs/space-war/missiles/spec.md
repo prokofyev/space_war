@@ -4,9 +4,9 @@
 
 Defines how each player fires and manages missiles: the Shift firing control,
 the limited starting magazine with slow replenishment, missiles that fly a
-bounded distance before self-destructing, and the two ways a missile can be
-removed by hitting another object (it destroys an enemy ship, or it intercepts
-another missile).
+bounded time under gravity before self-destructing, and the two ways a missile
+can be removed by hitting another object (it destroys an enemy ship, or it
+intercepts another missile).
 
 ## Requirements
 
@@ -62,10 +62,12 @@ interval, and SHALL never exceed the capacity.
 
 ### Requirement: Missile flight lifetime and self-destruct
 
-A missile SHALL travel in a straight line at constant velocity and SHALL
+A missile SHALL fly under gravity along with any other bodies, and SHALL
 self-destruct once it has been in flight for a configured maximum lifetime
-measured in time, without harming either ship. Its survivable distance is
-therefore whatever distance it covers during that time at its own speed.
+measured in time, without harming either ship. Its trajectory is no longer
+strictly a straight line, because gravitational attraction from other bodies
+bends its course. Its survivable distance is therefore whatever distance it
+covers during that time.
 
 #### Scenario: Missile expires in open space
 
@@ -79,6 +81,11 @@ therefore whatever distance it covers during that time at its own speed.
 - **WHEN** a missile flies faster than another missile
 - **THEN** both are removed after the same elapsed flight time, even though the
   faster one covered more distance
+
+#### Scenario: Gravity bends a missile's path
+
+- **WHEN** a missile flies near a more massive body
+- **THEN** its trajectory curves toward that body instead of staying straight
 
 #### Scenario: Missile crosses the borderless field
 

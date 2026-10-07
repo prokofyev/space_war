@@ -1,4 +1,5 @@
 import math
+from dataclasses import replace
 
 import pygame
 
@@ -9,6 +10,9 @@ from space_war.world import Controls, World
 
 
 def _world(config, width=200.0, height=150.0):
+    # These tests care about visual effects, not gravity; isolate the bodies so
+    # ships keep still while debris is checked.
+    config = replace(config, gravitational_constant=0.0)
     return World(config=config, width=width, height=height)
 
 

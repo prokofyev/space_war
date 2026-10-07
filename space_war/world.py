@@ -41,6 +41,11 @@ def toroidal_delta(a: Vec, b: Vec, size: Vec) -> Vec:
     return (dx, dy)
 
 
+# Gravity is sub-stepped so a single large frame produces the same result as
+# many small frames, and close encounters stay stable.
+_MAX_GRAVITY_SUBSTEP = 1.0 / 240.0
+
+
 @dataclass
 class World:
     config: GameConfig
@@ -102,12 +107,12 @@ class World:
         self.destroyed_events = []
 
         # During the destruction pause the world keeps advancing - survivors
-        # drift and in-flight missiles keep flying, wrapping, and expiring -
-        # but no controls apply, nothing scores, and only the respawn waits.
+        # drift and in-flight missiles keep flying under gravity, wrapping, and
+        # expiring - but no controls apply, nothing scores, and only the respawn
+        # waits.
         if not self.round_active:
             self.round_pause_remaining -= dt
-            self._integrate_ships(dt)
-            self._integrate_missiles(dt)
+            self._advance_bodies(dt)
             self._wrap_ships()
             self._wrap_missiles()
             self._expire_missiles()
@@ -116,12 +121,10 @@ class World:
             return
 
         self._apply_controls(dt, controls)
-        self._integrate_ships(dt)
+        self._advance_bodies(dt)
         self._wrap_ships()
-        self._resolve_ship_collisions()
-
-        self._integrate_missiles(dt)
         self._wrap_missiles()
+        self._resolve_ship_collisions()
         self._expire_missiles()
         self._resolve_missile_ship_hits()
         self._resolve_missile_interceptions()
@@ -175,6 +178,68 @@ class World:
             Missile(position=ship.position, velocity=muzzle, owner=index, age=0.0)
         )
         self.ammo[index] -= 1
+
+    def _advance_bodies(self, dt: float) -> None:
+        """Apply gravity and move every body, sub-stepped for stability."""
+        if self.config.gravitational_constant == 0.0:
+            self._integrate_ships(dt)
+            self._integrate_missiles(dt)
+            return
+        substeps = max(1, math.ceil(dt / _MAX_GRAVITY_SUBSTEP))
+        sub_dt = dt / substeps
+        for _ in range(substeps):
+            self._apply_gravity(sub_dt)
+            self._integrate_ships(sub_dt)
+            self._integrate_missiles(sub_dt)
+
+    def _apply_gravity(self, dt: float) -> None:
+        """Pull every body toward every other with an inverse-square force.
+
+        Ships and missiles are both sources and targets. Distances are the
+        shortest toroidal separation, so attraction works across the edges.
+        Each force is applied as a momentum change (``p += F * dt``) and the
+        velocity is recovered from momentum, so gravity can never push a body to
+        the speed of light. The distance is clamped by ``gravity_min_distance``
+        so coincident bodies stay finite (their direction is undefined, so such
+        a pair contributes no force).
+        """
+        config = self.config
+        if config.gravitational_constant == 0.0:
+            return
+        bodies: list[tuple[Ship | Missile, float]] = []
+        for ship in self.ships:
+            if ship.alive:
+                bodies.append((ship, config.ship_mass))
+        for missile in self.missiles:
+            bodies.append((missile, config.missile_mass))
+        if len(bodies) < 2:
+            return
+
+        size = self._size
+        g = config.gravitational_constant
+        r_min = config.gravity_min_distance
+        net: list[Vec] = [(0.0, 0.0)] * len(bodies)
+
+        for i in range(len(bodies)):
+            for j in range(i + 1, len(bodies)):
+                delta = toroidal_delta(
+                    bodies[i][0].position, bodies[j][0].position, size
+                )
+                r = length(delta)
+                if r == 0.0:
+                    continue
+                r_eff = max(r, r_min)
+                magnitude = g * bodies[i][1] * bodies[j][1] / (r_eff * r_eff)
+                direction = scale(delta, 1.0 / r)
+                force = scale(direction, magnitude)
+                net[i] = add(net[i], force)
+                net[j] = sub(net[j], force)
+
+        c = config.speed_of_light
+        for k, (body, mass) in enumerate(bodies):
+            p = relativity.momentum(body.velocity, mass, c)
+            p = add(p, scale(net[k], dt))
+            body.velocity = relativity.velocity_from_momentum(p, mass, c)
 
     def _integrate_ships(self, dt: float) -> None:
         for ship in self.ships:

@@ -42,6 +42,11 @@ class GameConfig:
     missile_speed: float = 620.0         # pixels / second added along facing
     missile_radius: float = 4.0
     missile_lifetime: float = 1.5        # seconds in flight before self-destruct
+    missile_mass: float = 0.02           # gravitational mass of a missile
+
+    # Gravity
+    gravitational_constant: float = 1.0e6  # G; scales all mutual attraction
+    gravity_min_distance: float = 32.0       # soft floor for r to avoid singularities
 
     # Ammunition
     ammo_start: int = 3

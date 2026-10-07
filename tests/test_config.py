@@ -38,3 +38,11 @@ def test_visual_and_timing_defaults_are_sane():
         config.glow_steps,
     ):
         assert value > 0
+
+
+def test_gravity_defaults_are_sane():
+    config = GameConfig()
+    assert config.gravitational_constant > 0
+    assert config.missile_mass > 0
+    assert config.missile_mass < config.ship_mass
+    assert config.gravity_min_distance > 0

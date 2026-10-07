@@ -13,18 +13,18 @@ without editing core logic.
 Gameplay quantities SHALL be defined as named configuration values rather than
 literals scattered through the logic, covering at least: ship rest mass, ship
 radius, rotation rate, thrust force/acceleration, missile launch speed, missile
-collision radius, missile flight lifetime (in seconds), starting and maximum
-ammunition, ammunition replenish interval, ship start positions and facings, and
-the speed of light `c` used by the relativistic model. The field dimensions
-SHALL be derived from the current fullscreen display resolution rather than
-hardcoded, so the playfield always spans the screen. Ship rest mass SHALL be
-equal for both players so that collisions behave like relativistic equal-mass
-collisions.
+collision radius, missile flight lifetime (in seconds), missile mass used by
+gravity, starting and maximum ammunition, ammunition replenish interval, ship
+start positions and facings, the speed of light `c`, and the gravitational
+constant used by gravity. The field dimensions SHALL be derived from the current
+fullscreen display resolution rather than hardcoded, so the playfield always
+spans the screen. Ship rest mass SHALL be equal for both players so that
+collisions behave like relativistic equal-mass collisions.
 
 #### Scenario: Constants are configurable in one place
 
-- **WHEN** a gameplay constant such as thrust, missile lifetime, or the speed of
-  light is changed in the configuration
+- **WHEN** a gameplay constant such as thrust, missile lifetime, the speed of
+  light, or the gravitational constant is changed in the configuration
 - **THEN** the behavior that depends on it changes accordingly without editing
   unrelated logic
 
@@ -50,6 +50,12 @@ collisions.
 
 - **WHEN** the missile lifetime is changed in the configuration
 - **THEN** missiles live for that many seconds of flight time before expiring
+
+#### Scenario: Gravitational constant is configurable
+
+- **WHEN** the gravitational constant is changed in the configuration
+- **THEN** the strength of gravitational attraction between bodies changes
+  accordingly
 
 ### Requirement: Per-player key bindings
 

@@ -52,6 +52,9 @@ def small_config():
         ammo_replenish_interval=1.0,
         start_positions=((0.1, 0.1), (0.9, 0.9)),
         start_facings=(0.0, 0.0),
+        # Gravity is exercised by dedicated tests; mechanic tests isolate
+        # bodies so coasting stays a straight line.
+        gravitational_constant=0.0,
     )
 
 
