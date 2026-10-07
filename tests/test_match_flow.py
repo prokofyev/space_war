@@ -105,7 +105,7 @@ def test_in_flight_missiles_move_during_pause(world):
 
     _kill(world, victim=1, winner=0)
     world.missiles.append(
-        Missile(position=(10.0, 10.0), velocity=(100.0, 0.0), owner=0, traveled=0.0)
+        Missile(position=(10.0, 10.0), velocity=(100.0, 0.0), owner=0, age=0.0)
     )
     world.step(world.config.destruction_pause * 0.3, [Controls(), Controls()])
     assert world.missiles

@@ -19,4 +19,4 @@ class Missile:
     position: Vec
     velocity: Vec
     owner: int            # index of the player who fired it (0 or 1)
-    traveled: float = 0.0
+    age: float = 0.0      # seconds in flight

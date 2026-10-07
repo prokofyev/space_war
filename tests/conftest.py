@@ -46,7 +46,7 @@ def small_config():
         thrust_accel=10.0,
         missile_speed=50.0,
         missile_radius=2.0,
-        missile_range=500.0,
+        missile_lifetime=1.0,
         ammo_start=3,
         ammo_max=3,
         ammo_replenish_interval=1.0,

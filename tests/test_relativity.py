@@ -144,7 +144,7 @@ def test_missile_in_flight_never_exceeds_c():
     from space_war.entities import Missile
 
     world.missiles.append(
-        Missile(position=(10.0, 10.0), velocity=(999.0, 0.0), owner=0, traveled=0.0)
+        Missile(position=(10.0, 10.0), velocity=(999.0, 0.0), owner=0, age=0.0)
     )
     for _ in range(50):
         world.step(0.016, [Controls(), Controls()])

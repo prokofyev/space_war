@@ -172,7 +172,7 @@ class World:
             muzzle_local, ship.velocity, self.config.speed_of_light
         )
         self.missiles.append(
-            Missile(position=ship.position, velocity=muzzle, owner=index, traveled=0.0)
+            Missile(position=ship.position, velocity=muzzle, owner=index, age=0.0)
         )
         self.ammo[index] -= 1
 
@@ -189,7 +189,7 @@ class World:
     def _integrate_missiles(self, dt: float) -> None:
         for missile in self.missiles:
             missile.position = add(missile.position, scale(missile.velocity, dt))
-            missile.traveled += length(missile.velocity) * dt
+            missile.age += dt
 
     def _wrap_missiles(self) -> None:
         for missile in self.missiles:
@@ -197,7 +197,7 @@ class World:
 
     def _expire_missiles(self) -> None:
         self.missiles = [
-            m for m in self.missiles if m.traveled < self.config.missile_range
+            m for m in self.missiles if m.age < self.config.missile_lifetime
         ]
 
     def _resolve_ship_collisions(self) -> None:

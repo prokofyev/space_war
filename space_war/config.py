@@ -36,12 +36,12 @@ class GameConfig:
     thrust_accel: float = 320.0          # low-speed acceleration; force = accel * mass
 
     # Relativity
-    speed_of_light: float = 2000.0       # pixels / second; no object may reach it
+    speed_of_light: float = 1000.0       # pixels / second; no object may reach it
 
     # Missiles
     missile_speed: float = 620.0         # pixels / second added along facing
     missile_radius: float = 4.0
-    missile_range: float = 900.0         # pixels flown before self-destruct
+    missile_lifetime: float = 1.5        # seconds in flight before self-destruct
 
     # Ammunition
     ammo_start: int = 3

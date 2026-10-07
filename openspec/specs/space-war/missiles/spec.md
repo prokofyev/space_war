@@ -63,16 +63,22 @@ interval, and SHALL never exceed the capacity.
 ### Requirement: Missile flight lifetime and self-destruct
 
 A missile SHALL travel in a straight line at constant velocity and SHALL
-self-destruct after it has flown a configured maximum lifetime or distance,
-whichever the implementation uses to bound its range, without harming either
-ship.
+self-destruct once it has been in flight for a configured maximum lifetime
+measured in time, without harming either ship. Its survivable distance is
+therefore whatever distance it covers during that time at its own speed.
 
 #### Scenario: Missile expires in open space
 
-- **WHEN** a missile has flown for the configured maximum range or lifetime
+- **WHEN** a missile's flight time reaches the configured maximum lifetime
   without hitting anything
 - **THEN** the missile is removed from play
 - **AND** neither player's score changes
+
+#### Scenario: Lifetime is measured in time, not distance
+
+- **WHEN** a missile flies faster than another missile
+- **THEN** both are removed after the same elapsed flight time, even though the
+  faster one covered more distance
 
 #### Scenario: Missile crosses the borderless field
 

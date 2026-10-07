@@ -25,11 +25,12 @@ def test_fire_combines_ship_velocity(world):
     ship.velocity = (30.0, 5.0)
     _fire(world, 0)
     missile = world.missiles[0]
-    # Low-speed limit of relativistic velocity addition ~ naive sum.
+    # Low-speed limit of relativistic velocity addition ~ naive sum. With the
+    # default c=1000 the SR correction at ~650 px/s is ~0.15%, so allow a touch.
     assert missile.velocity[0] == pytest.approx(
-        world.config.missile_speed + 30.0, rel=1e-3
+        world.config.missile_speed + 30.0, rel=2e-3
     )
-    assert missile.velocity[1] == pytest.approx(5.0, rel=1e-3)
+    assert missile.velocity[1] == pytest.approx(5.0, rel=2e-3)
 
 
 def test_empty_magazine_does_not_fire(world):
@@ -61,13 +62,13 @@ def test_replenishment_resets_on_round_start(world):
     assert world.recharge == [0.0, 0.0]
 
 
-def test_missile_expires_by_range_without_scoring(world):
+def test_missile_expires_by_time_without_scoring(world):
     world.missiles.append(
         Missile(
             position=(50.0, 50.0),
             velocity=(world.config.missile_speed, 0.0),
             owner=0,
-            traveled=world.config.missile_range - 1.0,
+            age=world.config.missile_lifetime - 0.01,
         )
     )
     world.step(0.1, [Controls(), Controls()])
@@ -75,9 +76,31 @@ def test_missile_expires_by_range_without_scoring(world):
     assert world.scores == [0, 0]
 
 
+def test_missile_survives_before_lifetime(world):
+    world.missiles.append(
+        Missile(position=(50.0, 50.0), velocity=(10.0, 0.0), owner=0, age=0.0)
+    )
+    world.step(world.config.missile_lifetime * 0.5, [Controls(), Controls()])
+    assert len(world.missiles) == 1
+
+
+def test_slow_and_fast_missiles_expire_after_same_time(world):
+    # Fast missile stays inside the field (short step) but both are removed at
+    # the same elapsed time because the bound is time, not distance.
+    c = world.config.speed_of_light
+    world.missiles.append(
+        Missile(position=(50.0, 50.0), velocity=(c * 0.5, 0.0), owner=0, age=0.0)
+    )
+    world.missiles.append(
+        Missile(position=(50.0, 50.0), velocity=(c * 0.9, 0.0), owner=1, age=0.0)
+    )
+    world.step(world.config.missile_lifetime + 0.001, [Controls(), Controls()])
+    assert world.missiles == []
+
+
 def test_missile_wraps_edges(world):
     world.missiles.append(
-        Missile(position=(99.0, 50.0), velocity=(50.0, 0.0), owner=0, traveled=0.0)
+        Missile(position=(99.0, 50.0), velocity=(50.0, 0.0), owner=0, age=0.0)
     )
     world.step(0.1, [Controls(), Controls()])
     missile = world.missiles[0]
@@ -88,7 +111,7 @@ def test_missile_hit_destroys_enemy_and_scores(world):
     enemy = world.ships[1]
     enemy.position = (50.0, 50.0)
     world.missiles.append(
-        Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0, traveled=0.0)
+        Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0, age=0.0)
     )
     world.step(1e-9, [Controls(), Controls()])
     assert world.scores == [1, 0]
@@ -104,7 +127,7 @@ def test_missile_does_not_hit_own_ship(world):
     own = world.ships[0]
     own.position = (50.0, 50.0)
     world.missiles.append(
-        Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0, traveled=0.0)
+        Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0, age=0.0)
     )
     world.step(1e-9, [Controls(), Controls()])
     assert own.alive

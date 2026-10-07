@@ -23,7 +23,7 @@ def test_expired_missile_does_not_hit(world):
             position=(50.0, 50.0),
             velocity=(0.0, 0.0),
             owner=0,
-            traveled=world.config.missile_range,  # already expired
+            age=world.config.missile_lifetime,  # already expired
         )
     )
     world.step(1e-9, [Controls(), Controls()])
