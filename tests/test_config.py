@@ -29,13 +29,11 @@ def test_visual_and_timing_defaults_are_sane():
         config.debris_min_speed,
         config.debris_lifetime,
         config.debris_size,
-        config.flame_length,
-        config.flame_width,
-        config.flame_animation_speed,
         config.trail_length,
         config.trail_points,
         config.glow_radius,
         config.glow_steps,
+        config.ship_sprite_scale,
     ):
         assert value > 0
 

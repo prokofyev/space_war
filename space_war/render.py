@@ -61,12 +61,7 @@ class Renderer:
         )
 
         thrusting = bool(controls and index < len(controls) and controls[index].thrust)
-        if thrusting:
-            effects.draw_flame(
-                surface, self.config, ship.position, ship.angle, self.elapsed
-            )
-
-        sprite = self.sprites.ship[index]
+        sprite = self.sprites.thrust[index] if thrusting else self.sprites.ship[index]
         rotated = pygame.transform.rotozoom(sprite, -math.degrees(ship.angle), 1.0)
         surface.blit(
             rotated,

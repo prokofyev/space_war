@@ -35,23 +35,22 @@ def test_renderer_draws_both_players_headless():
     renderer.draw(surface, world, font, [Controls(), Controls()])
 
 
-def test_flame_drawn_only_while_thrusting():
+def test_engines_on_frame_only_while_thrusting():
     config = GameConfig()
     surface = pygame.Surface((320, 240))
     world = _world(config, 320.0, 240.0)
     renderer = Renderer(config)
     font = pygame.font.SysFont("monospace", 14)
 
-    base = surface.copy()
     renderer.draw(surface, world, font, [Controls(thrust=False), Controls()])
-    no_flame = surface.copy()
+    engines_off = surface.copy()
 
     renderer.draw(surface, world, font, [Controls(thrust=True), Controls()])
-    with_flame = surface.copy()
+    engines_on = surface.copy()
 
-    # Thrusting must change the frame; coasting must match the no-thrust frame.
-    assert pygame.image.tostring(with_flame, "RGBA") != pygame.image.tostring(
-        no_flame, "RGBA"
+    # Holding thrust swaps in the engines-on artwork, changing the frame.
+    assert pygame.image.tostring(engines_on, "RGBA") != pygame.image.tostring(
+        engines_off, "RGBA"
     )
 
 

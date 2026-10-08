@@ -30,7 +30,7 @@ class GameConfig:
     """
 
     # Ship physics
-    ship_radius: float = 16.0
+    ship_radius: float = 32.0
     ship_mass: float = 1.0              # rest mass of a ship
     rotation_speed: float = 3.4          # radians / second
     thrust_accel: float = 320.0          # low-speed acceleration; force = accel * mass
@@ -63,13 +63,11 @@ class GameConfig:
     debris_lifetime: float = 0.9         # seconds before a piece disappears
     debris_size: float = 3.5             # pixels
     debris_damping: float = 2.0          # velocity decay per second
-    flame_length: float = 26.0           # pixels at full flicker
-    flame_width: float = 12.0            # pixels across the nozzle
-    flame_animation_speed: float = 20.0  # flicker rate
     trail_length: float = 26.0           # pixels of missile trail
     trail_points: int = 6
     glow_radius: float = 22.0            # pixels of halo around a ship
     glow_steps: int = 18
+    ship_sprite_scale: float = 2.6      # ship image length as a multiple of ship_radius
 
     # Spawn: positions as fractions of (width, height), facings in radians
     start_positions: tuple[tuple[float, float], tuple[float, float]] = (

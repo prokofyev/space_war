@@ -1,90 +1,97 @@
-"""Procedural sprite generation for ships, glows, and debris.
+"""Ship and glow sprites loaded from the bundled ship artwork.
 
-Everything here is presentational: it builds anti-aliased surfaces from the
-configured colours. Nothing in this module affects the simulation.
+Ship sprites come from image files shipped inside the package: each player has
+an "engines off" and an "engines on" image, the near-white image background is
+cut out, and the result is scaled and pre-rotated so its nose points along +x.
+All of this is presentational: nothing in this module affects the simulation.
 """
 from __future__ import annotations
 
 import math
+from collections import deque
+from pathlib import Path
 
 import pygame
 
 from .config import GameConfig
 
-_SUPERSAMPLE = 4  # render at 4x and downscale for smooth edges
+_ASSETS_DIR = Path(__file__).resolve().parent / "assets" / "ships"
+
+# Per player: (engines off, engines on) file names. Player one is blue, two red.
+_SHIP_FILES: tuple[tuple[str, str], tuple[str, str]] = (
+    ("blue_engines_off.jpeg", "blue_engines_on.jpeg"),
+    ("red_engines_off.jpeg", "red_engines_on.jpeg"),
+)
+_IMAGE_FACES_UP = -90.0  # degrees to rotate the nose-up artwork into +x
+
+# The artwork sits on a near-white background. A pixel is treated as background
+# when its darkest channel is this bright; the cut-out only removes background
+# pixels connected to the image border, so bright highlights inside the ship
+# (silver panels, the flame core) are kept.
+_BACKGROUND_MIN_CHANNEL = 232
+_BACKGROUND_WORK_SIZE = 256  # resolution the cut-out mask is computed at
 
 
-def _shade(color: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
-    if factor >= 0.0:
-        return tuple(min(255, int(c + (255 - c) * factor)) for c in color)
-    return tuple(max(0, int(c * (1.0 + factor))) for c in color)
+def _sprite_size(config: GameConfig) -> int:
+    """On-screen sprite length in pixels, tied to the ship's collision radius."""
+    return max(2, int(round(config.ship_radius * config.ship_sprite_scale)))
 
 
-def _sprite_span(config: GameConfig) -> float:
-    """Half-size of the sprite canvas so nose, fins, and glow all fit."""
-    return config.ship_radius * 1.9 + config.flame_length * 0.2
+def _remove_background(surface: pygame.Surface) -> pygame.Surface:
+    """Return an SRCALPHA copy with the border-connected white background cleared."""
+    work = _BACKGROUND_WORK_SIZE
+    small = pygame.transform.smoothscale(surface, (work, work))
+    near_white = [
+        [min(small.get_at((x, y))[:3]) >= _BACKGROUND_MIN_CHANNEL for x in range(work)]
+        for y in range(work)
+    ]
+
+    background = bytearray(work * work)
+    queue: deque[tuple[int, int]] = deque()
+
+    def visit(x: int, y: int) -> None:
+        index = y * work + x
+        if not background[index] and near_white[y][x]:
+            background[index] = 1
+            queue.append((x, y))
+
+    for x in range(work):
+        visit(x, 0)
+        visit(x, work - 1)
+    for y in range(work):
+        visit(0, y)
+        visit(work - 1, y)
+    while queue:
+        x, y = queue.popleft()
+        if x > 0:
+            visit(x - 1, y)
+        if x < work - 1:
+            visit(x + 1, y)
+        if y > 0:
+            visit(x, y - 1)
+        if y < work - 1:
+            visit(x, y + 1)
+
+    cut = pygame.Surface((work, work), pygame.SRCALPHA)
+    for y in range(work):
+        row = y * work
+        for x in range(work):
+            red, green, blue, _ = small.get_at((x, y))
+            alpha = 0 if background[row + x] else 255
+            cut.set_at((x, y), (red, green, blue, alpha))
+    return cut
 
 
-def build_ship_surface(config: GameConfig, player: int) -> pygame.Surface:
-    """Return an anti-aliased ship sprite with its nose pointing along +x."""
-    base = config.ship_colors[player]
-    radius = config.ship_radius
-    span = _sprite_span(config)
-    size = int(math.ceil(span * 2 * _SUPERSAMPLE))
+def build_ship_surface(
+    config: GameConfig, player: int, thrusting: bool = False
+) -> pygame.Surface:
+    """Return the player's ship sprite with its nose pointing along +x."""
+    name = _SHIP_FILES[player][1 if thrusting else 0]
+    cut = _remove_background(pygame.image.load(str(_ASSETS_DIR / name)))
 
-    canvas = pygame.Surface((size, size), pygame.SRCALPHA)
-    cx = cy = size / 2.0
-    r = radius * _SUPERSAMPLE
-
-    def point(dx: float, dy: float) -> tuple[float, float]:
-        return (cx + dx * _SUPERSAMPLE, cy + dy * _SUPERSAMPLE)
-
-    # Fins at the rear, splayed above and below the body.
-    fin = _shade(base, -0.35)
-    pygame.draw.polygon(
-        canvas,
-        fin,
-        [point(-radius * 0.2, -radius * 0.75), point(-radius * 1.05, -radius * 0.95),
-         point(-radius * 0.55, -radius * 0.15)],
-    )
-    pygame.draw.polygon(
-        canvas,
-        fin,
-        [point(-radius * 0.2, radius * 0.75), point(-radius * 1.05, radius * 0.95),
-         point(-radius * 0.55, radius * 0.15)],
-    )
-
-    # Exhaust nozzle.
-    pygame.draw.rect(
-        canvas,
-        _shade(base, -0.5),
-        pygame.Rect(
-            int(cx - r * 1.05), int(cy - r * 0.4), int(r * 0.45), int(r * 0.8)
-        ),
-    )
-
-    # Main torus body: outer disc, then a carved-out centre.
-    pygame.draw.circle(canvas, base, (cx, cy), r)
-    pygame.draw.circle(canvas, _shade(base, 0.25), (cx, cy - r * 0.22), r * 0.86, int(r * 0.32))
-    hole = pygame.Surface((size, size), pygame.SRCALPHA)
-    pygame.draw.circle(hole, (0, 0, 0, 0), (cx, cy), r * 0.5)
-    canvas.blit(hole, (0, 0))
-
-    # Nose accent so the facing direction is unmistakable.
-    pygame.draw.polygon(
-        canvas,
-        _shade(base, 0.6),
-        [point(radius * 0.55, -radius * 0.35), point(radius * 1.25, 0.0),
-         point(radius * 0.55, radius * 0.35)],
-    )
-
-    # Cockpit accent.
-    pygame.draw.circle(canvas, _shade(base, 0.75), point(radius * 0.15, 0.0), r * 0.28)
-
-    small = pygame.transform.smoothscale(
-        canvas, (int(math.ceil(span * 2)), int(math.ceil(span * 2)))
-    )
-    return small
+    size = _sprite_size(config)
+    scaled = pygame.transform.smoothscale(cut, (size, size))
+    return pygame.transform.rotate(scaled, _IMAGE_FACES_UP)
 
 
 def build_glow_surface(config: GameConfig, player: int) -> pygame.Surface:
@@ -107,4 +114,5 @@ class SpriteCache:
 
     def __init__(self, config: GameConfig) -> None:
         self.ship = [build_ship_surface(config, i) for i in (0, 1)]
+        self.thrust = [build_ship_surface(config, i, thrusting=True) for i in (0, 1)]
         self.glow = [build_glow_surface(config, i) for i in (0, 1)]

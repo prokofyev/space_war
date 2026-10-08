@@ -1,4 +1,4 @@
-"""Render-layer visual effects: explosion debris, thrust flames, missile trails.
+"""Render-layer visual effects: explosion debris and missile trails.
 
 Nothing here is part of the simulation. Effects only read the world state and
 draw onto a surface, so they never affect collision, damage, or scoring.
@@ -93,39 +93,6 @@ class ExplosionField:
             pygame.draw.circle(chunk, (*piece.color, alpha), (size, size), size)
             surface.blit(chunk, (piece.position[0] - size, piece.position[1] - size))
 
-
-def draw_flame(
-    surface: pygame.Surface,
-    config: GameConfig,
-    position: Vec,
-    angle: float,
-    elapsed: float,
-) -> None:
-    """Draw an animated thrust flame behind a ship's nozzle."""
-    flicker = 0.65 + 0.35 * math.sin(elapsed * config.flame_animation_speed)
-    length = config.flame_length * flicker
-    half_width = config.flame_width / 2.0
-    back = angle + math.pi
-
-    def offset(dist: float, side: float) -> tuple[float, float]:
-        ox = math.cos(back) * dist - math.sin(back) * side
-        oy = math.sin(back) * dist + math.cos(back) * side
-        return (position[0] + ox, position[1] + oy)
-
-    base = config.ship_radius * 0.9
-    flame = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-    pygame.draw.polygon(
-        flame,
-        (255, 190, 80, 220),
-        [offset(base, -half_width), offset(base + length, 0.0), offset(base, half_width)],
-    )
-    pygame.draw.polygon(
-        flame,
-        (255, 240, 170, 230),
-        [offset(base, -half_width * 0.5), offset(base + length * 0.6, 0.0),
-         offset(base, half_width * 0.5)],
-    )
-    surface.blit(flame, (0, 0))
 
 
 def draw_missile_trail(
