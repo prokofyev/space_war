@@ -41,7 +41,7 @@ class GameConfig:
     # Missiles
     missile_speed: float = 620.0         # pixels / second added along facing
     missile_radius: float = 4.0
-    missile_lifetime: float = 1.5        # seconds in flight before self-destruct
+    missile_lifetime: float = 3.5        # seconds in flight before self-destruct
     missile_mass: float = 0.02           # gravitational mass of a missile
 
     # Gravity
@@ -54,7 +54,10 @@ class GameConfig:
     ammo_replenish_interval: float = 3.0  # seconds per replenished missile
 
     # Round timing
-    destruction_pause: float = 1.0       # seconds between destruction and respawn
+    destruction_pause: float = 2.0       # seconds of round-end window before respawn
+
+    # Firing
+    fire_cooldown: float = 0.2           # seconds between two shots from one player
 
     # Presentation: explosion and effects
     debris_count: int = 14

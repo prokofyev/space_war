@@ -22,6 +22,7 @@ def test_player_bindings_are_disjoint():
 def test_visual_and_timing_defaults_are_sane():
     config = GameConfig()
     assert config.destruction_pause > 0
+    assert config.fire_cooldown > 0
     assert config.speed_of_light > 0
     for value in (
         config.debris_count,

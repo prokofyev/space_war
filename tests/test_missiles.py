@@ -141,3 +141,81 @@ def test_missile_interception_removes_both(world):
     assert world.missiles == []
     assert world.scores == [0, 0]
     assert all(ship.alive for ship in world.ships)
+
+
+def test_missile_starts_unarmed(world):
+    from space_war.entities import Missile
+
+    missile = Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0)
+    assert missile.armed is False
+
+
+def test_fresh_missile_spares_its_own_ship(world):
+    ship = world.ships[0]
+    ship.position = (50.0, 50.0)
+    ship.angle = 0.0
+    _fire(world, 0)
+    world.step(1e-9, [Controls(), Controls()])
+    assert ship.alive
+    assert len(world.missiles) == 1
+    assert world.missiles[0].armed is False
+
+
+def test_missile_arms_after_leaving_its_own_radius(world):
+    from space_war.entities import Missile
+
+    ship = world.ships[0]
+    ship.position = (10.0, 10.0)
+    world.missiles.append(
+        Missile(position=(30.0, 30.0), velocity=(0.0, 0.0), owner=0)
+    )
+    world.step(1e-9, [Controls(), Controls()])
+    assert world.missiles[0].armed is True
+
+
+def test_armed_missile_can_destroy_its_own_ship(world):
+    from space_war.entities import Missile
+
+    ship = world.ships[0]
+    ship.position = (50.0, 50.0)
+    world.missiles.append(
+        Missile(
+            position=(50.0, 50.0),
+            velocity=(0.0, 0.0),
+            owner=0,
+            armed=True,
+        )
+    )
+    world.step(1e-9, [Controls(), Controls()])
+    assert not ship.alive
+    assert world.scores == [0, 1]  # the opponent of the destroyed ship scores
+
+
+def test_same_owner_missiles_intercept_each_other(world):
+    world.missiles.append(Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0))
+    world.missiles.append(Missile(position=(50.0, 50.0), velocity=(0.0, 0.0), owner=0))
+    world.step(1e-9, [Controls(), Controls()])
+    assert world.missiles == []
+    assert world.scores == [0, 0]
+    assert all(ship.alive for ship in world.ships)
+
+
+def test_fire_cooldown_blocks_second_shot(world):
+    _fire(world, 0)
+    _fire(world, 0)
+    assert len(world.missiles) == 1
+    assert world.ammo[0] == world.config.ammo_start - 1
+
+
+def test_fire_allowed_after_cooldown(world):
+    _fire(world, 0)
+    world.step(world.config.fire_cooldown + 1e-6, [Controls(), Controls()])
+    _fire(world, 0)
+    assert len(world.missiles) == 2
+
+
+def test_fire_cooldown_resets_on_round_start(world):
+    _fire(world, 0)
+    assert world.cooldowns[0] > 0.0
+    world.reset_round()
+    assert world.cooldowns == [0.0, 0.0]

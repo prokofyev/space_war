@@ -20,3 +20,4 @@ class Missile:
     velocity: Vec
     owner: int            # index of the player who fired it (0 or 1)
     age: float = 0.0      # seconds in flight
+    armed: bool = False   # True once it has left its owner's collision radius

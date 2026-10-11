@@ -47,6 +47,8 @@ def small_config():
         missile_speed=50.0,
         missile_radius=2.0,
         missile_lifetime=1.0,
+        destruction_pause=1.0,
+        fire_cooldown=0.2,
         ammo_start=3,
         ammo_max=3,
         ammo_replenish_interval=1.0,

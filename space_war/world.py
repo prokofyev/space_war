@@ -56,6 +56,8 @@ class World:
     scores: list[int] = field(default_factory=lambda: [0, 0])
     ammo: list[int] = field(default_factory=list)
     recharge: list[float] = field(default_factory=lambda: [0.0, 0.0])
+    cooldowns: list[float] = field(default_factory=lambda: [0.0, 0.0])
+    round_scored: list[bool] = field(default_factory=lambda: [False, False])
     round_active: bool = True
     round_pause_remaining: float = 0.0
     destroyed_events: list[tuple[int, Vec, float, Vec]] = field(default_factory=list)
@@ -79,6 +81,8 @@ class World:
         self.missiles = []
         self.ammo = [self.config.ammo_start, self.config.ammo_start]
         self.recharge = [0.0, 0.0]
+        self.cooldowns = [0.0, 0.0]
+        self.round_scored = [False, False]
         self.round_active = True
         self.round_pause_remaining = 0.0
 
@@ -106,20 +110,10 @@ class World:
 
         self.destroyed_events = []
 
-        # During the destruction pause the world keeps advancing - survivors
-        # drift and in-flight missiles keep flying under gravity, wrapping, and
-        # expiring - but no controls apply, nothing scores, and only the respawn
-        # waits.
-        if not self.round_active:
-            self.round_pause_remaining -= dt
-            self._advance_bodies(dt)
-            self._wrap_ships()
-            self._wrap_missiles()
-            self._expire_missiles()
-            if self.round_pause_remaining <= 0.0:
-                self.reset_round()
-            return
-
+        # The round-end window is not a freeze: controls, firing, movement,
+        # gravity, wrapping, expiry, and missile damage all keep running. Only
+        # the respawn waits for the window to elapse, and the window timer is
+        # started once, at the first destruction, never restarted.
         self._apply_controls(dt, controls)
         self._advance_bodies(dt)
         self._wrap_ships()
@@ -131,7 +125,14 @@ class World:
 
         self._resolve_round()
 
+        if not self.round_active:
+            self.round_pause_remaining -= dt
+            if self.round_pause_remaining <= 0.0:
+                self.reset_round()
+
     def _apply_controls(self, dt: float, controls: list[Controls]) -> None:
+        for i in range(len(self.cooldowns)):
+            self.cooldowns[i] = max(0.0, self.cooldowns[i] - dt)
         for i, ship in enumerate(self.ships):
             if not ship.alive:
                 continue
@@ -167,7 +168,7 @@ class World:
             self.ammo[index] += 1
 
     def _fire(self, index: int) -> None:
-        if not self.round_active or self.ammo[index] <= 0:
+        if self.ammo[index] <= 0 or self.cooldowns[index] > 0.0:
             return
         ship = self.ships[index]
         muzzle_local = scale(from_angle(ship.angle), self.config.missile_speed)
@@ -178,6 +179,7 @@ class World:
             Missile(position=ship.position, velocity=muzzle, owner=index, age=0.0)
         )
         self.ammo[index] -= 1
+        self.cooldowns[index] = self.config.fire_cooldown
 
     def _advance_bodies(self, dt: float) -> None:
         """Apply gravity and move every body, sub-stepped for stability."""
@@ -323,12 +325,17 @@ class World:
         survivors: list[Missile] = []
         for missile in self.missiles:
             hit = False
+            owner_ship = self.ships[missile.owner]
+            hit_radius = self.config.missile_radius + self.config.ship_radius
+            if not missile.armed:
+                if self.distance(missile.position, owner_ship.position) > hit_radius:
+                    missile.armed = True
             for i, ship in enumerate(self.ships):
-                if i == missile.owner or not ship.alive:
+                if not ship.alive:
                     continue
-                if self.distance(missile.position, ship.position) <= (
-                    self.config.missile_radius + self.config.ship_radius
-                ):
+                if i == missile.owner and not missile.armed:
+                    continue
+                if self.distance(missile.position, ship.position) <= hit_radius:
                     ship.alive = False
                     hit = True
                     break
@@ -345,8 +352,6 @@ class World:
                     continue
                 mi = self.missiles[i]
                 mj = self.missiles[j]
-                if mi.owner == mj.owner:
-                    continue
                 if self.distance(mi.position, mj.position) <= (
                     self.config.missile_radius * 2.0
                 ):
@@ -356,13 +361,14 @@ class World:
             self.missiles = [m for k, m in enumerate(self.missiles) if k not in removed]
 
     def _resolve_round(self) -> None:
-        dead = [i for i, ship in enumerate(self.ships) if not ship.alive]
-        if len(dead) != 1:
-            return
-        winner = 1 - dead[0]
-        self.scores[winner] += 1
-        loser = dead[0]
-        ship = self.ships[loser]
-        self.destroyed_events.append((loser, ship.position, ship.angle, ship.velocity))
-        self.round_active = False
-        self.round_pause_remaining = self.config.destruction_pause
+        for i, ship in enumerate(self.ships):
+            if ship.alive or self.round_scored[i]:
+                continue
+            self.round_scored[i] = True
+            self.scores[1 - i] += 1
+            self.destroyed_events.append(
+                (i, ship.position, ship.angle, ship.velocity)
+            )
+            if self.round_active:
+                self.round_active = False
+                self.round_pause_remaining = self.config.destruction_pause
