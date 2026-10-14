@@ -2,7 +2,7 @@ import math
 
 from space_war import relativity
 from space_war.vector import length
-from space_war.world import Controls, toroidal_delta
+from space_war.world import Controls, euclidean_delta
 
 
 def _rel_momentum(ships, config):
@@ -64,23 +64,18 @@ def test_collision_separates_ships(world):
     a.position = (40.0, 50.0)
     b.position = (41.0, 50.0)
     world.step(0.0001, [Controls(), Controls()])
-    dist = length(toroidal_delta(a.position, b.position, (world.width, world.height)))
+    dist = length(euclidean_delta(a.position, b.position))
     assert dist >= world.config.ship_radius * 2 - 1e-6
 
 
-def test_toroidal_distance_across_seam(world):
-    # Points near opposite edges are actually close on the torus.
-    d = toroidal_delta((1.0, 50.0), (99.0, 50.0), (100.0, 100.0))
-    assert length(d) == 2.0
-
-
-def test_collision_detected_across_seam(world):
+def test_distant_ships_do_not_collide(world):
+    # On the unbounded plane, far-apart coordinates are genuinely far apart:
+    # there is no wrap that could bring them together.
     a, b = world.ships
-    a.position = (2.0, 50.0)
-    b.position = (98.0, 50.0)  # distance 4 across the seam, radius sum 10
-    a.velocity = (-5.0, 0.0)  # approaching across the seam
-    b.velocity = (5.0, 0.0)
+    a.position = (0.0, 50.0)
+    b.position = (99.0, 50.0)  # distance 99, radius sum 10
+    a.velocity = (5.0, 0.0)
+    b.velocity = (-5.0, 0.0)
     world.step(0.0001, [Controls(), Controls()])
-    # They collided: velocities reversed.
-    assert a.velocity[0] > 0
-    assert b.velocity[0] < 0
+    assert a.velocity == (5.0, 0.0)
+    assert b.velocity == (-5.0, 0.0)

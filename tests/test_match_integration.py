@@ -1,11 +1,13 @@
 """Headless integration test: drive a full match loop for many frames."""
+import math
+
 from space_war.config import GameConfig
 from space_war.world import Controls, World
 
 
 def test_simulated_match_runs_and_scores():
     config = GameConfig()
-    world = World(config=config, width=1280.0, height=720.0)
+    world = World(config=config)
     # Players face each other at the start; player 2 fires straight at the idle
     # player 1, which must eventually connect and score a round.
     c1 = Controls()
@@ -24,22 +26,22 @@ def test_simulated_match_runs_and_scores():
     assert all(0 <= ammo <= config.ammo_max for ammo in world.ammo)
 
 
-def test_thrusting_ships_stay_inside_toroidal_field():
+def test_thrusting_ships_stay_finite_on_infinite_field():
     config = GameConfig()
-    world = World(config=config, width=800.0, height=600.0)
+    world = World(config=config)
     for frame in range(3000):
         world.step(
             1.0 / 60.0,
             [Controls(thrust=True, rotate=1), Controls(thrust=True, rotate=-1)],
         )
-        for ship in world.ships:
-            assert 0.0 <= ship.position[0] < world.width
-            assert 0.0 <= ship.position[1] < world.height
+    # Ships move on an unbounded plane; positions are finite and never wrapped.
+    for ship in world.ships:
+        assert all(math.isfinite(c) for c in ship.position)
 
 
 def test_missile_interception_in_live_loop():
     config = GameConfig()
-    world = World(config=config, width=300.0, height=300.0)
+    world = World(config=config)
     world.ships[0].position = (150.0, 100.0)
     world.ships[0].angle = 0.0
     world.ships[1].position = (150.0, 200.0)

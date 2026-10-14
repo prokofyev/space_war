@@ -9,11 +9,11 @@ from space_war.render import Renderer
 from space_war.world import Controls, World
 
 
-def _world(config, width=200.0, height=150.0):
+def _world(config):
     # These tests care about visual effects, not gravity; isolate the bodies so
     # ships keep still while debris is checked.
     config = replace(config, gravitational_constant=0.0)
-    return World(config=config, width=width, height=height)
+    return World(config=config)
 
 
 def test_renderer_rotated_sprite_differs_across_angles():
@@ -28,7 +28,7 @@ def test_renderer_rotated_sprite_differs_across_angles():
 def test_renderer_draws_both_players_headless():
     config = GameConfig()
     surface = pygame.Surface((320, 240))
-    world = _world(config, 320.0, 240.0)
+    world = _world(config)
     renderer = Renderer(config)
     font = pygame.font.SysFont("monospace", 14)
     renderer.update(0.016, world, [Controls(), Controls()])
@@ -38,7 +38,7 @@ def test_renderer_draws_both_players_headless():
 def test_engines_on_frame_only_while_thrusting():
     config = GameConfig()
     surface = pygame.Surface((320, 240))
-    world = _world(config, 320.0, 240.0)
+    world = _world(config)
     renderer = Renderer(config)
     font = pygame.font.SysFont("monospace", 14)
 
@@ -76,7 +76,7 @@ def test_debris_spawns_spreads_and_expires():
 
 def test_debris_is_purely_visual():
     config = GameConfig()
-    world = _world(config, 200.0, 150.0)
+    world = _world(config)
     before = ([s.position for s in world.ships], list(world.scores), list(world.ammo))
     field = effects.ExplosionField(config)
     field.spawn((10.0, 10.0), (255, 0, 0))
@@ -89,7 +89,7 @@ def test_debris_is_purely_visual():
 
 def test_debris_spawns_from_destruction_event():
     config = GameConfig()
-    world = _world(config, 200.0, 150.0)
+    world = _world(config)
     renderer = Renderer(config)
     world.ships[1].position = (60.0, 60.0)
     from space_war.entities import Missile
@@ -104,7 +104,7 @@ def test_debris_spawns_from_destruction_event():
 
 def test_round_reset_clears_debris():
     config = GameConfig()
-    world = _world(config, 200.0, 150.0)
+    world = _world(config)
     renderer = Renderer(config)
     world.ships[1].position = (60.0, 60.0)
     from space_war.entities import Missile
@@ -134,7 +134,7 @@ def test_debris_from_destruction_event_inherits_velocity():
     from space_war.entities import Missile
 
     config = GameConfig()
-    world = _world(config, 200.0, 150.0)
+    world = _world(config)
     renderer = Renderer(config)
     victim = world.ships[1]
     victim.position = (100.0, 75.0)
@@ -147,3 +147,59 @@ def test_debris_from_destruction_event_inherits_velocity():
         renderer.explosions.pieces
     )
     assert mean_dx > 60.0
+
+
+def test_camera_frames_both_ships_when_apart():
+    config = replace(GameConfig(), gravitational_constant=0.0)
+    world = _world(config)
+    world.ships[0].position = (-5000.0, 0.0)
+    world.ships[1].position = (5000.0, 0.0)
+    renderer = Renderer(config)
+    viewport = (800, 600)
+    renderer.camera.follow(world, viewport, 0.0)
+    for ship in world.ships:
+        x, y = renderer.camera.to_screen(ship.position, viewport)
+        assert 0.0 <= x <= viewport[0]
+        assert 0.0 <= y <= viewport[1]
+
+
+def test_camera_zoom_is_uniform_and_grows_when_ships_close():
+    config = replace(GameConfig(), gravitational_constant=0.0)
+    world = _world(config)
+    viewport = (800, 600)
+    camera = Renderer(config).camera
+
+    world.ships[0].position = (-2000.0, 0.0)
+    world.ships[1].position = (2000.0, 0.0)
+    camera.follow(world, viewport, 0.0)
+    far_scale = camera.scale
+
+    world.ships[0].position = (-100.0, 0.0)
+    world.ships[1].position = (100.0, 0.0)
+    camera.follow(world, viewport, 0.0)
+    near_scale = camera.scale
+
+    # Closer ships -> larger zoom, with no upper cap.
+    assert near_scale > far_scale > 0.0
+
+
+def test_camera_moves_smoothly_toward_target():
+    config = replace(GameConfig(), gravitational_constant=0.0, camera_smoothing=4.0)
+    world = _world(config)
+    viewport = (800, 600)
+    camera = Renderer(config).camera
+
+    camera.follow(world, viewport, 0.0)  # initialize at the start framing
+    start_scale = camera.scale
+    start_center = camera.center
+
+    # Move the pair asymmetrically apart so the tracked midpoint also shifts.
+    world.ships[0].position = (-4000.0, 1000.0)
+    world.ships[1].position = (2000.0, 3000.0)
+    camera.follow(world, viewport, 1.0 / 60.0)
+    # One small step must not jump straight to the far target.
+    target_center, target_scale = camera.target(world, viewport)
+    assert camera.scale != start_scale
+    assert camera.scale > target_scale
+    assert camera.center != start_center
+    assert camera.center != target_center

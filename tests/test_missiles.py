@@ -1,7 +1,7 @@
 import pytest
 
 from space_war.entities import Missile
-from space_war.world import Controls, toroidal_delta
+from space_war.world import Controls
 
 
 def _fire(world, player_index=0):
@@ -98,13 +98,14 @@ def test_slow_and_fast_missiles_expire_after_same_time(world):
     assert world.missiles == []
 
 
-def test_missile_wraps_edges(world):
+def test_missile_does_not_wrap(world):
+    # On the infinite field a missile simply keeps flying; no edge wraps it.
     world.missiles.append(
         Missile(position=(99.0, 50.0), velocity=(50.0, 0.0), owner=0, age=0.0)
     )
     world.step(0.1, [Controls(), Controls()])
     missile = world.missiles[0]
-    assert missile.position[0] < 50.0
+    assert missile.position[0] == 104.0
 
 
 def test_missile_hit_destroys_enemy_and_scores(world):

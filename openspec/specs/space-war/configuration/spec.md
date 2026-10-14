@@ -15,12 +15,13 @@ literals scattered through the logic, covering at least: ship rest mass, ship
 radius, rotation rate, thrust force/acceleration, missile launch speed, missile
 collision radius, missile flight lifetime (in seconds), missile mass used by
 gravity, starting and maximum ammunition, ammunition replenish interval, the
-firing cooldown between shots, the round-end window duration, ship start
-positions and facings, the speed of light `c`, and the gravitational constant
-used by gravity. The field dimensions SHALL be derived from the current
-fullscreen display resolution rather than hardcoded, so the playfield always
-spans the screen. Ship rest mass SHALL be equal for both players so that
-collisions behave like relativistic equal-mass collisions.
+firing cooldown between shots, the round-end window duration, the initial
+distance between the two ships and their facings, the camera framing margin and
+smoothing rate, the speed of light `c`, and the gravitational constant used by
+gravity. The world SHALL be infinite, so no field width or height SHALL be
+derived from the display resolution or hardcoded. Ship rest mass SHALL be equal
+for both players so that collisions behave like relativistic equal-mass
+collisions.
 
 #### Scenario: Constants are configurable in one place
 
@@ -39,8 +40,9 @@ collisions behave like relativistic equal-mass collisions.
 #### Scenario: Field dimensions follow the display
 
 - **WHEN** the game starts in fullscreen mode
-- **THEN** the configured field width and height match the current display
-  resolution rather than fixed pixel dimensions
+- **THEN** the camera derives its initial zoom from the configured initial ship
+  distance and the current display resolution so both ships are framed on
+  screen, while the world itself is unbounded and independent of the resolution
 
 #### Scenario: Speed of light is configurable
 
@@ -70,6 +72,25 @@ collisions behave like relativistic equal-mass collisions.
 - **WHEN** the gravitational constant is changed in the configuration
 - **THEN** the strength of gravitational attraction between bodies changes
   accordingly
+
+### Requirement: Initial ship placement
+
+The configuration SHALL define the starting distance between the two ships as
+`initial_ship_distance` in world units, replacing display-fraction start
+positions. The two ships SHALL start centered on the origin, separated by that
+distance along the horizontal axis and facing each other.
+
+#### Scenario: Ships start at the configured distance
+
+- **WHEN** a new match or round begins
+- **THEN** the two ships are placed symmetrically about the origin, separated
+  by `initial_ship_distance`, facing each other
+
+#### Scenario: Changing the start distance moves both ships
+
+- **WHEN** `initial_ship_distance` is changed in the configuration
+- **THEN** the initial separation between the two ships changes accordingly
+  without editing unrelated logic
 
 ### Requirement: Per-player key bindings
 

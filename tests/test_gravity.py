@@ -7,12 +7,13 @@ from dataclasses import replace
 from space_war.config import GameConfig
 from space_war.entities import Missile
 from space_war.vector import length, sub
-from space_war.world import Controls, World, toroidal_delta
+from space_war.world import Controls, World, euclidean_delta
+from space_war import relativity
 
 
 def _gravity_world(**overrides):
     config = replace(GameConfig(), thrust_accel=0.0, **overrides)
-    return World(config=config, width=1000.0, height=1000.0)
+    return World(config=config)
 
 
 def test_two_bodies_attract_each_other():
@@ -85,17 +86,16 @@ def test_gravitational_constant_scales_force():
     )
 
 
-def test_attraction_across_field_edge():
+def test_attraction_is_the_straight_line_between_bodies():
     world = _gravity_world()
     a, b = world.ships
     a.position = (20.0, 500.0)
-    b.position = (980.0, 500.0)  # 40 px away across the seam
-    # Sanity: the wrapped separation is the short one.
-    assert length(toroidal_delta(a.position, b.position, (1000.0, 1000.0))) == 40.0
+    b.position = (60.0, 500.0)  # 40 px away, no wrap involved
+    assert length(euclidean_delta(a.position, b.position)) == 40.0
     world._apply_gravity(1e-3)
-    # Across the seam, a (near x=0) is pulled toward -x, i.e. off the left edge.
-    assert a.velocity[0] < 0.0
-    assert b.velocity[0] > 0.0
+    # a is pulled toward +x (toward b), b toward -x (toward a).
+    assert a.velocity[0] > 0.0
+    assert b.velocity[0] < 0.0
 
 
 def test_coincident_bodies_stay_finite():
@@ -152,7 +152,7 @@ def test_net_force_is_sum_of_pairwise_forces():
     mm = world.config.missile_mass
 
     def pairwise(mass_i, mass_j, pos_i, pos_j):
-        delta = toroidal_delta(pos_i, pos_j, (1000.0, 1000.0))
+        delta = euclidean_delta(pos_i, pos_j)
         r = length(delta)
         magnitude = g * mass_i * mass_j / (r * r)
         return (delta[0] / r * magnitude, delta[1] / r * magnitude)
@@ -163,9 +163,16 @@ def test_net_force_is_sum_of_pairwise_forces():
     expected = (expected[0] + f_missile[0], expected[1] + f_missile[1])
 
     world._apply_gravity(dt)
-    # Low speed: delta v = F * dt / m.
-    assert ship.velocity[0] == pytest.approx(expected[0] * dt / m, rel=1e-9)
-    assert ship.velocity[1] == pytest.approx(expected[1] * dt / m, rel=1e-9)
+    # Gravity changes momentum by the net force times dt, and velocity follows
+    # from that momentum relativistically. Comparing against the same exact
+    # update keeps the check independent of the magnitude of G (a Newtonian
+    # delta-v = F * dt / m approximation would only hold for weak gravity).
+    c = world.config.speed_of_light
+    p0 = relativity.momentum((0.0, 0.0), m, c)
+    p_expected = (p0[0] + expected[0] * dt, p0[1] + expected[1] * dt)
+    v_expected = relativity.velocity_from_momentum(p_expected, m, c)
+    assert ship.velocity[0] == pytest.approx(v_expected[0], rel=1e-12)
+    assert ship.velocity[1] == pytest.approx(v_expected[1], rel=1e-12)
 
 
 def test_gravity_is_applied_by_step():

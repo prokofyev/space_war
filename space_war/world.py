@@ -25,20 +25,9 @@ class Controls:
     fire: bool = False
 
 
-def wrap_scalar(value: float, size: float) -> float:
-    """Wrap a single coordinate into ``[0, size)``."""
-    return value % size
-
-
-def toroidal_delta(a: Vec, b: Vec, size: Vec) -> Vec:
-    """Shortest vector from ``a`` to ``b`` on a torus of the given size."""
-    dx = (b[0] - a[0]) % size[0]
-    dy = (b[1] - a[1]) % size[1]
-    if dx > size[0] / 2.0:
-        dx -= size[0]
-    if dy > size[1] / 2.0:
-        dy -= size[1]
-    return (dx, dy)
+def euclidean_delta(a: Vec, b: Vec) -> Vec:
+    """Vector from ``a`` to ``b`` on an unbounded plane."""
+    return (b[0] - a[0], b[1] - a[1])
 
 
 # Gravity is sub-stepped so a single large frame produces the same result as
@@ -49,8 +38,6 @@ _MAX_GRAVITY_SUBSTEP = 1.0 / 240.0
 @dataclass
 class World:
     config: GameConfig
-    width: float
-    height: float
     ships: list[Ship] = field(default_factory=list)
     missiles: list[Missile] = field(default_factory=list)
     scores: list[int] = field(default_factory=lambda: [0, 0])
@@ -68,11 +55,12 @@ class World:
     # -- setup ---------------------------------------------------------------
     def reset_round(self) -> None:
         self.ships = []
+        half = self.config.initial_ship_distance / 2.0
+        positions = ((-half, 0.0), (half, 0.0))
         for i in range(2):
-            fx, fy = self.config.start_positions[i]
             self.ships.append(
                 Ship(
-                    position=(fx * self.width, fy * self.height),
+                    position=positions[i],
                     velocity=(0.0, 0.0),
                     angle=self.config.start_facings[i],
                     alive=True,
@@ -87,21 +75,14 @@ class World:
         self.round_pause_remaining = 0.0
 
     # -- helpers -------------------------------------------------------------
-    @property
-    def _size(self) -> Vec:
-        return (self.width, self.height)
-
     def ship_radius(self) -> float:
         return self.config.ship_radius
 
     def missile_radius(self) -> float:
         return self.config.missile_radius
 
-    def _wrap_position(self, position: Vec) -> Vec:
-        return (wrap_scalar(position[0], self.width), wrap_scalar(position[1], self.height))
-
     def distance(self, a: Vec, b: Vec) -> float:
-        return length(toroidal_delta(a, b, self._size))
+        return length(euclidean_delta(a, b))
 
     # -- main step -----------------------------------------------------------
     def step(self, dt: float, controls: list[Controls]) -> None:
@@ -111,13 +92,11 @@ class World:
         self.destroyed_events = []
 
         # The round-end window is not a freeze: controls, firing, movement,
-        # gravity, wrapping, expiry, and missile damage all keep running. Only
+        # gravity, expiry, and missile damage all keep running. Only
         # the respawn waits for the window to elapse, and the window timer is
         # started once, at the first destruction, never restarted.
         self._apply_controls(dt, controls)
         self._advance_bodies(dt)
-        self._wrap_ships()
-        self._wrap_missiles()
         self._resolve_ship_collisions()
         self._expire_missiles()
         self._resolve_missile_ship_hits()
@@ -198,7 +177,7 @@ class World:
         """Pull every body toward every other with an inverse-square force.
 
         Ships and missiles are both sources and targets. Distances are the
-        shortest toroidal separation, so attraction works across the edges.
+        straight-line (Euclidean) separation on the unbounded plane.
         Each force is applied as a momentum change (``p += F * dt``) and the
         velocity is recovered from momentum, so gravity can never push a body to
         the speed of light. The distance is clamped by ``gravity_min_distance``
@@ -217,15 +196,14 @@ class World:
         if len(bodies) < 2:
             return
 
-        size = self._size
         g = config.gravitational_constant
         r_min = config.gravity_min_distance
         net: list[Vec] = [(0.0, 0.0)] * len(bodies)
 
         for i in range(len(bodies)):
             for j in range(i + 1, len(bodies)):
-                delta = toroidal_delta(
-                    bodies[i][0].position, bodies[j][0].position, size
+                delta = euclidean_delta(
+                    bodies[i][0].position, bodies[j][0].position
                 )
                 r = length(delta)
                 if r == 0.0:
@@ -249,18 +227,10 @@ class World:
                 continue
             ship.position = add(ship.position, scale(ship.velocity, dt))
 
-    def _wrap_ships(self) -> None:
-        for ship in self.ships:
-            ship.position = self._wrap_position(ship.position)
-
     def _integrate_missiles(self, dt: float) -> None:
         for missile in self.missiles:
             missile.position = add(missile.position, scale(missile.velocity, dt))
             missile.age += dt
-
-    def _wrap_missiles(self) -> None:
-        for missile in self.missiles:
-            missile.position = self._wrap_position(missile.position)
 
     def _expire_missiles(self) -> None:
         self.missiles = [
@@ -272,7 +242,7 @@ class World:
         a, b = self.ships
         if not (a.alive and b.alive):
             return
-        delta = toroidal_delta(a.position, b.position, self._size)
+        delta = euclidean_delta(a.position, b.position)
         dist = length(delta)
         min_dist = radius * 2.0
         if dist >= min_dist or dist == 0.0:
@@ -294,8 +264,8 @@ class World:
 
         # Separate overlapping ships along the normal.
         half = overlap / 2.0
-        a.position = self._wrap_position(add(a.position, scale(normal, -half)))
-        b.position = self._wrap_position(add(b.position, scale(normal, half)))
+        a.position = add(a.position, scale(normal, -half))
+        b.position = add(b.position, scale(normal, half))
 
     def _elastic_collide(self, a: Ship, b: Ship) -> None:
         config = self.config

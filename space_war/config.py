@@ -25,8 +25,8 @@ class PlayerBindings:
 class GameConfig:
     """All tunable gameplay values.
 
-    Field dimensions are intentionally absent: they come from the fullscreen
-    display resolution at runtime and are passed to :class:`World`.
+    Field dimensions are intentionally absent: the world is infinite, so the
+    simulation has no bounds and the display size only affects the camera.
     """
 
     # Ship physics
@@ -41,7 +41,7 @@ class GameConfig:
     # Missiles
     missile_speed: float = 620.0         # pixels / second added along facing
     missile_radius: float = 4.0
-    missile_lifetime: float = 3.5        # seconds in flight before self-destruct
+    missile_lifetime: float = 13.5        # seconds in flight before self-destruct
     missile_mass: float = 0.02           # gravitational mass of a missile
 
     # Gravity
@@ -72,12 +72,15 @@ class GameConfig:
     glow_steps: int = 18
     ship_sprite_scale: float = 2.6      # ship image length as a multiple of ship_radius
 
-    # Spawn: positions as fractions of (width, height), facings in radians
-    start_positions: tuple[tuple[float, float], tuple[float, float]] = (
-        (0.25, 0.5),
-        (0.75, 0.5),
-    )
+    # Spawn: the two ships start centered on the origin, separated along the
+    # horizontal axis by this many world units, facing each other.
+    initial_ship_distance: float = 960.0
     start_facings: tuple[float, float] = (0.0, math.pi)
+
+    # Camera: fraction of the viewport kept as border around the framed ships,
+    # and the exponential smoothing rate (per second) for zoom/pan changes.
+    camera_margin: float = 0.15
+    camera_smoothing: float = 6.0
 
     # Per-player bindings
     player_bindings: dict[int, PlayerBindings] = field(

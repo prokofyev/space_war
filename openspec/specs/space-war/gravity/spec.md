@@ -5,7 +5,7 @@
 Defines the universal gravitational attraction between all bodies on the
 playfield: every ship and missile attracts every other, the force obeys an
 inverse-square law, and it is applied through the relativistic momentum model on
-the borderless (toroidal) field.
+an infinite plane.
 
 ## Requirements
 
@@ -56,22 +56,21 @@ them, scaled by a configurable gravitational constant.
 - **THEN** the strength of all gravitational attraction changes accordingly
   without editing the force logic
 
-### Requirement: Gravity across the borderless field
+### Requirement: Gravity on an infinite field
 
-Gravitational distances SHALL be measured as the shortest distance on the
-toroidal field, so bodies attract each other across the edges exactly as they do
-in the interior.
+Gravitational distances SHALL be measured as the ordinary straight-line
+(Euclidean) distance between bodies on the infinite field. There SHALL be no
+wrapping and no shortest-path edge behavior, because the field has no edges.
 
-#### Scenario: Attraction across an edge
+#### Scenario: Distance is the straight line between bodies
 
-- **WHEN** two bodies are near opposite edges of the field
-- **THEN** they attract each other across the shortest wrapped path, not across
-  the full width of the field
+- **WHEN** two bodies are far apart on the field
+- **THEN** the gravitational force uses their plain separation distance and
+  direction, not a wrapped alternative
 
-#### Scenario: No singularity from wrapping
+#### Scenario: No singularity for coincident bodies
 
-- **WHEN** two bodies are at the same effective position on the torus (or very
-  close)
+- **WHEN** two bodies are at the same position or very close
 - **THEN** the gravitational calculation remains finite and does not produce NaN
   or infinite acceleration
 

@@ -64,7 +64,7 @@ def test_pause_duration_is_configurable(world):
     from dataclasses import replace
 
     long_world = world.__class__(
-        config=replace(world.config, destruction_pause=2.0), width=100.0, height=100.0
+        config=replace(world.config, destruction_pause=2.0)
     )
     _kill(long_world, victim=1, winner=0)
     long_world.step(1.0, [Controls(), Controls()])
@@ -76,8 +76,8 @@ def test_pause_duration_is_configurable(world):
 def test_step_is_frame_rate_independent(world):
     from space_war.world import World
 
-    a = World(config=world.config, width=100.0, height=100.0)
-    b = World(config=world.config, width=100.0, height=100.0)
+    a = World(config=world.config)
+    b = World(config=world.config)
     for w in (a, b):
         w.ships[0].position = (50.0, 50.0)
         w.ships[0].velocity = (20.0, 0.0)

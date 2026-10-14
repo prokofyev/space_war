@@ -95,11 +95,11 @@ covers during that time.
 - **WHEN** a missile flies near a more massive body
 - **THEN** its trajectory curves toward that body instead of staying straight
 
-#### Scenario: Missile crosses the borderless field
+#### Scenario: Missile keeps flying on the infinite field
 
-- **WHEN** a missile's position moves beyond an edge of the field
-- **THEN** the missile re-enters from the opposite edge at the same offset and
-  keeps its velocity
+- **WHEN** a missile's position moves beyond where the field used to end
+- **THEN** it simply keeps flying on the infinite plane, maintaining its offset
+  and velocity, with no wrap to the opposite edge
 
 ### Requirement: Missile destroys an enemy ship
 

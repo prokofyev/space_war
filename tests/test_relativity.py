@@ -9,8 +9,8 @@ from space_war.vector import length
 from space_war.world import Controls, World
 
 
-def _world(config, width=1000.0, height=1000.0):
-    return World(config=config, width=width, height=height)
+def _world(config):
+    return World(config=config)
 
 
 def test_gamma_grows_with_speed():
@@ -92,7 +92,13 @@ def test_perpendicular_thrust_deflects_near_c():
 
 
 def test_thrust_is_frame_rate_independent():
-    config = replace(GameConfig(), speed_of_light=1000.0, thrust_accel=200.0)
+    # Isolate thrust: gravity would add a dt-dependent term to the comparison.
+    config = replace(
+        GameConfig(),
+        speed_of_light=1000.0,
+        thrust_accel=200.0,
+        gravitational_constant=0.0,
+    )
 
     a = _world(config)
     a.ships[0].angle = 0.0
@@ -154,7 +160,7 @@ def test_missile_in_flight_never_exceeds_c():
 
 def test_fast_collision_keeps_both_below_c():
     config = replace(GameConfig(), speed_of_light=1000.0, ship_radius=5.0)
-    world = _world(config, width=200.0, height=200.0)
+    world = _world(config)
     a, b = world.ships
     a.position = (95.0, 100.0)
     b.position = (104.0, 100.0)
@@ -167,7 +173,7 @@ def test_fast_collision_keeps_both_below_c():
 
 def test_low_speed_collision_matches_newtonian():
     config = replace(GameConfig(), speed_of_light=2000.0, ship_radius=5.0)
-    world = _world(config, width=200.0, height=200.0)
+    world = _world(config)
     a, b = world.ships
     a.position = (95.0, 100.0)
     b.position = (104.0, 100.0)

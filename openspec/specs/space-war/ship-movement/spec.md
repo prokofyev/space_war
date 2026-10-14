@@ -3,8 +3,8 @@
 ## Purpose
 
 Defines how the two player ships move on the playfield: rotation, inertia,
-thrust-or-brake acceleration relative to the current velocity, seamless
-wrapping at the field edges, and damage-free relativistic elastic collisions
+thrust-or-brake acceleration relative to the current velocity, unbounded
+movement on an infinite plane, and damage-free relativistic elastic collisions
 between ships.
 
 ## Requirements
@@ -124,30 +124,24 @@ but SHALL NOT prevent slowing down or turning.
 - **THEN** the resulting speed stays strictly below `c` and the gain per unit of
   thrust is smaller than at low speed
 
-### Requirement: Borderless toroidal playfield
+### Requirement: Infinite playfield without wrapping
 
-The playfield SHALL have no walls. Any ship that leaves one edge SHALL
-re-enter from the opposite edge while preserving its position offset, velocity,
-and facing angle relative to the field.
+The playfield SHALL be an infinite plane with no walls and no edges. A ship
+SHALL move freely under its velocity and thrust, and SHALL NOT be teleported,
+wrapped, or otherwise repositioned when it moves away from the origin. Its
+position SHALL be allowed to grow or shrink without bound.
 
-#### Scenario: Exit through the top edge
+#### Scenario: A ship is never teleported by an edge
 
-- **WHEN** a ship's position moves above the top edge of the field
-- **THEN** the ship re-enters at the bottom edge at the same horizontal
-  position and keeps its velocity and facing angle
+- **WHEN** a ship moves in a straight line for an extended time
+- **THEN** its position changes continuously by velocity multiplied by elapsed
+  time, with no wrap or jump to another part of the field
 
-#### Scenario: Exit through the right edge
+#### Scenario: Ships may fly apart without limit
 
-- **WHEN** a ship's position moves beyond the right edge of the field
-- **THEN** the ship re-enters at the left edge at the same vertical position
-  and keeps its velocity and facing angle
-
-#### Scenario: Diagonal exit wraps both axes
-
-- **WHEN** a ship crosses a corner so that it leaves both a vertical and a
-  horizontal edge
-- **THEN** the ship re-enters at the diagonally opposite corner with velocity
-  and facing angle unchanged
+- **WHEN** two ships move apart
+- **THEN** the distance between them grows without bound and neither ship is
+  stopped or redirected by the absence of a boundary
 
 ### Requirement: Damage-free elastic ship collision
 

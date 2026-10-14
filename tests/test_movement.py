@@ -2,7 +2,7 @@ import math
 
 from dataclasses import replace
 
-from space_war.world import Controls, World, wrap_scalar
+from space_war.world import Controls, World
 
 
 def _two_player_controls(a=Controls(), b=Controls()):
@@ -67,36 +67,26 @@ def test_thrust_perpendicular_deflects(world):
     assert math.isclose(ship.velocity[1], -world.config.thrust_accel, rel_tol=1e-3)
 
 
-def test_wrap_scalar():
-    assert wrap_scalar(-1.0, 100.0) == 99.0
-    assert wrap_scalar(150.0, 100.0) == 50.0
-    assert wrap_scalar(100.0, 100.0) == 0.0
-
-
-def test_wrap_top_edge(world):
-    ship = world.ships[0]
-    ship.position = (40.0, -3.0)
-    world._wrap_ships()
-    assert ship.position == (40.0, 97.0)
-
-
-def test_wrap_diagonal_corner(world):
-    ship = world.ships[0]
-    ship.velocity = (60.0, 60.0)
-    ship.position = (95.0, 95.0)
-    world.step(0.5, _two_player_controls())
-    assert 0 <= ship.position[0] < world.width
-    assert 0 <= ship.position[1] < world.height
-    # Velocity and facing are preserved across the wrap.
-    assert ship.velocity == (60.0, 60.0)
-
-
-def test_wrap_preserves_velocity_and_facing(world):
+def test_ship_is_never_wrapped_by_an_edge(world):
+    # The world is infinite: a ship far off-origin keeps its position offset,
+    # velocity, and facing with no teleport to another part of the field.
     ship = world.ships[0]
     ship.velocity = (0.0, -80.0)
     ship.angle = 1.0
     ship.position = (10.0, 5.0)
     world.step(1.0, _two_player_controls())
-    assert ship.position[1] < 50.0
+    assert ship.position == (10.0, -75.0)
     assert ship.velocity == (0.0, -80.0)
     assert ship.angle == 1.0
+
+
+def test_ships_fly_apart_without_bound(world):
+    a, b = world.ships
+    a.position = (0.0, 0.0)
+    b.position = (100.0, 0.0)
+    a.velocity = (-100.0, 0.0)
+    b.velocity = (100.0, 0.0)
+    world.step(1.0, _two_player_controls())
+    assert a.position == (-100.0, 0.0)
+    assert b.position == (200.0, 0.0)
+    assert world.distance(a.position, b.position) == 300.0

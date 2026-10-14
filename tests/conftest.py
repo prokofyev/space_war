@@ -52,7 +52,7 @@ def small_config():
         ammo_start=3,
         ammo_max=3,
         ammo_replenish_interval=1.0,
-        start_positions=((0.1, 0.1), (0.9, 0.9)),
+        initial_ship_distance=40.0,
         start_facings=(0.0, 0.0),
         # Gravity is exercised by dedicated tests; mechanic tests isolate
         # bodies so coasting stays a straight line.
@@ -62,4 +62,4 @@ def small_config():
 
 @pytest.fixture
 def world(small_config):
-    return World(config=small_config, width=100.0, height=100.0)
+    return World(config=small_config)

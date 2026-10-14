@@ -84,14 +84,19 @@ class ExplosionField:
             alive.append(piece)
         self.pieces = alive
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, camera=None, viewport=None) -> None:
         for piece in self.pieces:
             t = piece.age / piece.lifetime if piece.lifetime > 0 else 1.0
             alpha = max(0, int(255 * (1.0 - t)))
-            size = max(1, int(piece.size * (1.0 - 0.4 * t)))
+            scale = camera.scale if camera is not None else 1.0
+            if camera is not None and viewport is not None:
+                position = camera.to_screen(piece.position, viewport)
+            else:
+                position = piece.position
+            size = max(1, int(piece.size * (1.0 - 0.4 * t) * scale))
             chunk = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
             pygame.draw.circle(chunk, (*piece.color, alpha), (size, size), size)
-            surface.blit(chunk, (piece.position[0] - size, piece.position[1] - size))
+            surface.blit(chunk, (position[0] - size, position[1] - size))
 
 
 
@@ -100,17 +105,22 @@ def draw_missile_trail(
     config: GameConfig,
     position: Vec,
     velocity: Vec,
+    scale: float = 1.0,
 ) -> None:
-    """Draw a fading trail behind a missile, opposite its velocity."""
+    """Draw a fading trail behind a missile, opposite its velocity.
+
+    ``position`` is already in screen space; ``scale`` is the camera zoom so
+    the trail matches the missile's on-screen size.
+    """
     speed = math.hypot(velocity[0], velocity[1])
     if speed == 0.0:
         return
     direction = (velocity[0] / speed, velocity[1] / speed)
     for i in range(config.trail_points, 0, -1):
         t = i / config.trail_points
-        dist = config.trail_length * t
+        dist = config.trail_length * t * scale
         alpha = int(150 * (1.0 - t))
-        size = max(1, int(config.missile_radius * (1.4 - t)))
+        size = max(1, int(config.missile_radius * (1.4 - t) * scale))
         point = (position[0] - direction[0] * dist, position[1] - direction[1] * dist)
         dot = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
         pygame.draw.circle(dot, (255, 220, 150, alpha), (size, size), size)

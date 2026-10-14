@@ -12,8 +12,8 @@ MAX_FRAME_DT = 0.05  # clamp huge deltas after stalls to keep physics stable
 
 
 def world_from_display(config: GameConfig, surface: pygame.Surface) -> World:
-    """Build a world whose field spans the given (fullscreen) surface."""
-    return World(config=config, width=surface.get_width(), height=surface.get_height())
+    """Build the unbounded world; the surface only informs the camera later."""
+    return World(config=config)
 
 
 def run(config: GameConfig | None = None) -> None:

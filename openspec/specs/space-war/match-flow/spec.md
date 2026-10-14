@@ -30,22 +30,22 @@ round state (ships, missiles, and scores) each frame.
 ### Requirement: Fullscreen display
 
 The game SHALL run in fullscreen mode, occupying the entire selected display
-with no window frame or decorations, and the playfield SHALL size itself to the
-full display resolution so the whole screen is usable play area.
+with no window frame or decorations. The display SHALL show the current view of
+the infinite world through a camera that frames both ships, rather than a finite
+playfield sized to the display resolution.
 
 #### Scenario: Launches in fullscreen
 
 - **WHEN** the game starts
 - **THEN** the display covers the entire screen in fullscreen mode with no
   window borders
-- **AND** the playfield spans the full display resolution
 
 #### Scenario: Playfield adapts to the display resolution
 
 - **WHEN** the game runs on a display whose resolution differs from another
   display or a previous run
-- **THEN** the playfield dimensions and edge wrapping use the current display
-  resolution
+- **THEN** the camera frames both ships within the current display resolution
+  and the simulation is unaffected by the resolution
 
 ### Requirement: Round lifecycle and restart
 
@@ -55,10 +55,10 @@ immediately: it SHALL enter a fixed round-end window of a configured duration
 that starts at the first destruction and SHALL NOT restart or extend when any
 later ship is destroyed during that window. Throughout the window the round
 SHALL keep simulating at full gameplay strength: controls, firing, movement,
-gravity, edge wrapping, and missile damage all remain active, and ships may
-still be destroyed. Only when the window elapses SHALL the next round begin.
-This allows a missile already in flight, or a shot fired during the window, to
-destroy the other ship and to award its opponent a point.
+gravity, and missile damage all remain active, and ships may still be destroyed.
+Only when the window elapses SHALL the next round begin. This allows a missile
+already in flight, or a shot fired during the window, to destroy the other ship
+and to award its opponent a point.
 
 #### Scenario: Round ends when a ship is destroyed
 
@@ -71,7 +71,7 @@ destroy the other ship and to award its opponent a point.
 
 - **WHEN** a ship has been destroyed and the round is in the round-end window
 - **THEN** ships respond to controls, players can fire, and active missiles
-  continue to fly, wrap at the field edges, and expire by lifetime
+  continue to fly and expire by lifetime
 
 #### Scenario: Destruction pause precedes respawn
 
@@ -89,7 +89,7 @@ destroy the other ship and to award its opponent a point.
 
 - **WHEN** the round is in the round-end window
 - **THEN** surviving ships respond to controls, players can fire, all bodies
-  keep moving and wrapping, and missiles still destroy ships
+  keep moving, and missiles still destroy ships
 
 #### Scenario: A second destruction does not restart the window
 
